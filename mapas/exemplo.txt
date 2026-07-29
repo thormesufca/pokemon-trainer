@@ -1,0 +1,30 @@
+GRAFO
+9 11
+0 1 5
+0 2 8
+1 3 3
+2 3 2
+3 4 7
+3 5 4
+4 6 6
+5 6 1
+6 7 9
+6 8 3
+7 8 2
+
+LOCAIS
+LAB 0
+ESTADIO 8
+PMC 3 6
+GINASIO 1 2 4 5 7
+
+POPULACAO
+TREINADORES 4
+POKEMON 15
+ITENS 8
+
+EVOLUCOES
+Bulbasaur Ivysaur Venusaur
+Charmander Charmeleon Charizard
+Squirtle Wartortle Blastoise
+Pikachu Raichu
