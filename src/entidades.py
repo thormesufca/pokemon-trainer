@@ -1,7 +1,11 @@
-import random
+from __future__ import annotations
 
+import random
+from collections import Counter
+from typing import List
 
 class Pokemon:
+    MAX_HP = 100
     XP_EVOLUCAO = 1000
     BONUS_EVOLUCAO = 0.30
 
@@ -16,6 +20,7 @@ class Pokemon:
         self._pontos_ap = 0
         self._pontos_dp = 0
         self._tempo_inconsciente = 0  # unidades restantes até recuperar consciência
+        self._dono: Treinador = None
 
     @property
     def ap(self):
@@ -32,6 +37,10 @@ class Pokemon:
     @property
     def muito_machucado(self):
         return self.hp < 5
+
+    @property
+    def tem_dono(self):
+        return self._dono is not None
 
     def ganhar_xp(self, n):
         self.xp += n
@@ -57,13 +66,21 @@ class Pokemon:
     def curar_natural(self, distancia):
         if not self.muito_machucado:
             ganho = distancia // 10
-            self.hp = min(100, self.hp + ganho)
+            self.curar(ganho)
         if not self.consciente:
             self._tempo_inconsciente = max(0, self._tempo_inconsciente - distancia)
 
     def curar_pmc(self):
-        self.hp = 100
+        self.curar(self.MAX_HP)
         self._tempo_inconsciente = 0
+
+    def curar(self, amount:int):
+        if self.consciente:
+            self.hp = min(self.MAX_HP, self.hp + amount)
+
+    def capturar(self, treinador: Treinador):
+        self._dono = treinador
+
 
     def __repr__(self):
         return f"{self.nome} HP:{self.hp} XP:{self.xp} AP:{self.ap} DP:{self.dp}"
@@ -74,11 +91,22 @@ class Treinador:
     MAX_TOTAL = 7  # ativos + ovos
     XP_POR_DISTANCIA = 100  # 1 XP a cada 100 unidades
 
+    def _efeito_erva(self):
+        for p in self.time:
+            if p.consciente:
+                p.curar(10)
+    EFEITOS = {
+        "erva": _efeito_erva
+    }
+
+
     def __init__(self, nome, posicao_inicial):
         self.nome = nome
         self.posicao = posicao_inicial
         self.xp = 0
-        self.time = []
+        self.time: List[Pokemon] = []
+        self.laboratorio: List[Pokemon] = []
+        self.itens = Counter()
         self.ovos = {}  # {Pokemon: dist_restante}
         self.insignias = set()
         self._dist_acumulada = 0
@@ -87,15 +115,48 @@ class Treinador:
     def conscientes(self):
         return [p for p in self.time if p.consciente]
 
+
     @property
     def pode_batalhar(self):
         return len(self.conscientes) >= 3
+
+    @property
+    def time_cheio(self):
+        return len(self.time) >= self.MAX_ATIVOS
 
     def mover(self, destino, peso, relogio):
         relogio.avancar(peso)
         self.posicao = destino
         self._dist_acumulada += peso
         self._processar_distancia(peso)
+
+    def pegar_item(self, tipo: str):
+        self.itens[tipo] += 1
+
+    def usar_item(self, tipo: str):
+        if self.itens[tipo] <= 0:
+            print("Você não tem esse item")
+            return
+        self.EFEITOS[tipo](self)
+        self.itens[tipo] -= 1
+
+    def adicionar_pokemon(self, pokemon: Pokemon):
+        if pokemon.tem_dono:
+            raise ValueError("Pokemon já tem dono")
+
+        if self.time_cheio:
+            raise RuntimeError("Time cheio")
+
+        pokemon.capturar(self)
+        self.time.append(pokemon)
+
+    def gerenciar_time_cheio(self, novo_pokemon:Pokemon, indice):
+        novo_pokemon.capturar(self)
+        candidatos = self.time + [novo_pokemon]
+        enviado = candidatos.pop(indice)
+        self.laboratorio.append(enviado)
+        self.time = candidatos
+
 
     def _processar_distancia(self, distancia):
         # XP por distância para cada Pokémon do time
@@ -128,3 +189,8 @@ class Treinador:
 
     def __repr__(self):
         return f"{self.nome} pos:{self.posicao} XP:{self.xp} insígnias:{len(self.insignias)}"
+
+
+class MundoStub:
+    def vertices_com(self, tipo):
+        return []

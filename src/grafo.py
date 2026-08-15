@@ -56,6 +56,38 @@ def ler_grafo(caminho):
     return grafo, locais, populacao, evolucoes
 
 
+def floyd_warshall(grafo: dict):
+    """
+    Executa floyd-warshall no grafo e retorna duas matrizes.
+    A primeira matriz tem a distância entre cada par de vértices do grafo
+    A segunda matriz é composta do primeiro passo do menor caminho entre qualquer par de vértices
+    """
+
+    n = len(grafo)
+    INF = float('inf')
+
+    dist = [[INF] * n for _ in range(n)]
+    prox = [[None] * n for _ in range(n)]
+
+    for v in range(n):
+        dist[v][v] = 0 # Zerar distâncias para si mesmo
+        prox[v][v] = v # Proximo para si mesmo é ele mesmo
+
+    for u in grafo:
+        for v, w in grafo[u]:
+            if w < dist[u][v]:
+                dist[u][v] = w
+                prox[u][v] = v
+
+    for k in range(n):
+        for i in range(n):
+            for j in range(n):
+                if dist[i][k] + dist[k][j] < dist[i][j]:
+                    dist[i][j] = dist[i][k] + dist[k][j]
+                    prox[i][j] = prox[i][k]
+
+    return dist, prox
+
 def _validar_conexo(grafo):
     """
     Faz uma BFS a partir do vértice 0 e verifica se todos os vértices são alcançáveis.
@@ -75,6 +107,12 @@ def _validar_conexo(grafo):
     if visitados != set(grafo.keys()):
         raise ValueError("O grafo não é conexo — há vértices inacessíveis.")
 
+def mais_proximo(dist, prox, origem, candidatos: list[int]):
+    alcancaveis = [(dist[origem][v], v) for v in candidatos if dist[origem][v] < float('inf')]
+    if not alcancaveis:
+        return None
+    distancia, vertice = min(alcancaveis)
+    return vertice, distancia, prox[origem][vertice]
 
 def vizinhos(grafo, v):
     return grafo[v]

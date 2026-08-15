@@ -1,4 +1,5 @@
-from src.grafo import vizinhos
+from src.grafo import vizinhos, mais_proximo
+from src.entidades import Pokemon, Treinador
 
 
 def _tipo_local(v, locais):
@@ -38,7 +39,7 @@ def exibir_estado(grafo, treinador, relogio, locais):
     print(f"Time: {time_str}")
 
 
-def _exibir_status(treinador):
+def _exibir_status(treinador: Treinador):
     print(f"\n=== STATUS — {treinador.nome} ===")
     print(f"XP: {treinador.xp} | Insígnias: {len(treinador.insignias)}")
     if treinador.time:
@@ -49,10 +50,60 @@ def _exibir_status(treinador):
     if treinador.ovos:
         for ovo, dist in treinador.ovos.items():
             print(f"  Ovo {ovo.nome}: {dist} unidades até eclodir")
+    itens_disponiveis = {tipo: qtd for tipo, qtd in treinador.itens.items() if qtd > 0}
+    if itens_disponiveis:
+        for tipo, qtd in itens_disponiveis.items():
+            print(f"  Item: {tipo} x {qtd}")
+    else:
+        print("  (sem itens)")
+
     print()
 
+def _adicionar_pokemon_escolha(treinador: Treinador, pokemon: Pokemon):
+    if not treinador.time_cheio:
+        treinador.adicionar_pokemon(pokemon)
+        return
 
-def loop_comandos(grafo, locais, treinador, relogio):
+    candidatos = treinador.time + [pokemon]
+    print("Time cheio! Escolha quem enviar para o laboratório:")
+    for i, p in enumerate(candidatos):
+        marca = " (recém capturado)" if p is pokemon else ""
+        print(f"[{i}] - {p.nome} ({p.hp} HP){marca}")
+
+    while True:
+        escolha = input("> ").strip()
+        if escolha.isdigit() and 0 <= int(escolha) < len(candidatos):
+            break
+        print("Escolha inválida")
+
+    treinador.gerenciar_time_cheio(pokemon, int(escolha))
+
+def _pontos_de_interesse(dist, prox, locais, mundo, treinador: Treinador):
+    origem = treinador.posicao
+    categorias = {
+        "Ginásio" : locais.get("GINASIO", []),
+        "Hospital (PMC)" : locais.get("PMC", []),
+        "Pokemon Selvagem": mundo.vertices_com("pokemon_selvagem"),
+        "Item": mundo.vertices_com("item"),
+        "Ovo": mundo.vertices_com("ovo")
+    }
+    print("\n=== PONTOS DE INTERESSE PRÓXIMOS ===")
+    for nome, candidatos in categorias.items():
+        resultado = mais_proximo(dist, prox, origem, candidatos)
+        if resultado is None:
+            print(f"{nome}: nenhum encontrado")
+            continue
+        vertice, distancia, passo = resultado
+        if vertice == origem:
+            print(f"{nome}: você já está aqui")
+        elif vertice == passo:
+            print(f"{nome}: Vértice {vertice} (custo {distancia}) - Vizinho a você!")
+        else:
+            print(f"{nome}: Vértice {vertice} (custo {distancia}) - via vértice {passo}")
+
+
+
+def loop_comandos(grafo, locais, treinador, relogio, dist, prox, mundo):
     print(f"\nBem-vindo, {treinador.nome}! Você está no laboratório.")
     print("Comandos: ir <v>  |  mapa  |  status  |  sair\n")
     exibir_estado(grafo, treinador, relogio, locais)
@@ -77,6 +128,14 @@ def loop_comandos(grafo, locais, treinador, relogio):
         elif cmd == "status":
             _exibir_status(treinador)
 
+        elif cmd == "pegar":
+            tipo = "erva"
+            treinador.pegar_item(tipo)
+            print(f"Você pegou: {tipo}")
+            # TODO implementar remoção do item do mundo
+        elif cmd == "interesse":
+            _pontos_de_interesse(dist, prox, locais, mundo, treinador)
+
         elif cmd.startswith("ir "):
             partes = cmd.split()
             if len(partes) != 2 or not partes[1].isdigit():
@@ -100,4 +159,4 @@ def loop_comandos(grafo, locais, treinador, relogio):
                 break
 
         else:
-            print("Comando desconhecido. Tente: ir <v>  |  mapa  |  status  |  sair")
+            print("Comando desconhecido. Tente: ir <v>  |  mapa  |  status  |  interesse  |  sair")
