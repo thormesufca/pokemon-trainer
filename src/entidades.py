@@ -245,8 +245,7 @@ class Treinador:
 
     @staticmethod
     def criar_treinador_npc(nome, posicao_inicial, evolucoes) -> Treinador:
-        """Cria um treinador NPC com um time aleatório (3 a MAX_ATIVOS pokémon), para que
-        ele tenha utilidade em batalhas (é preciso ao menos 3 pokémon conscientes para lutar)."""
+        """Cria um treinador NPC com um time aleatório (3 a MAX_ATIVOS pokémon)"""
         npc = Treinador(nome, posicao_inicial)
         for _ in range(random.randint(3, Treinador.MAX_ATIVOS)):
             cadeia = random.choice(evolucoes)
@@ -254,9 +253,66 @@ class Treinador:
         return npc
 
 
+class LiderGinasio(Treinador):
+    """Líder de um ginásio: fixo ou móvel em relação ao seu vértice de origem."""
+
+    TEMPO_MIN_FORA = 10
+    TEMPO_MAX_FORA = 50
+    TEMPO_MIN_CASA = 10
+    TEMPO_MAX_CASA = 50
+
+    def __init__(self, nome, ginasio, movel):
+        super().__init__(nome, ginasio)
+        self.ginasio = ginasio  # vértice de origem; também serve de id da insígnia concedida
+        self.movel = movel
+        self.estado = "EM_CASA"  # EM_CASA | VAGANDO | RETORNANDO
+        self.contador = random.randint(self.TEMPO_MIN_CASA, self.TEMPO_MAX_CASA) if movel else None #Inicia contador com tempo em casa, se móvel
+
+    @property
+    def presente(self):
+        return self.posicao == self.ginasio
+
+    def passo(self, grafo, prox, vertices_proibidos):
+        """Avança um passo no ciclo de movimentação (um vértice por chamada)."""
+        if not self.movel:
+            return  # fixo: nunca sai do ginásio
+
+        if self.estado == "EM_CASA":
+            self.contador -= 1
+            if self.contador <= 0:
+                self.estado = "VAGANDO"
+                self.contador = random.randint(self.TEMPO_MIN_FORA, self.TEMPO_MAX_FORA) #Reseta o contador para tempo fora
+                self._passo_vagando(grafo, vertices_proibidos)  # já sai andando neste turno
+
+        elif self.estado == "VAGANDO":
+            self._passo_vagando(grafo, vertices_proibidos)
+            if self.contador <= 0:
+                self.estado = "RETORNANDO"
+
+        elif self.estado == "RETORNANDO":
+            if self.posicao == self.ginasio:
+                self.estado = "EM_CASA"
+                self.contador = random.randint(self.TEMPO_MIN_CASA, self.TEMPO_MAX_CASA) #Reseta contador para tempo em casa
+            else:
+                self.posicao = prox[self.posicao][self.ginasio] #Dá um passo pelo menor caminho
+
+    def _passo_vagando(self, grafo, vertices_proibidos):
+        candidatos = [v for v, _ in grafo[self.posicao] if v not in vertices_proibidos] #Dá um passo para um vértice aleatório
+        if candidatos:
+            self.posicao = random.choice(candidatos)
+        self.contador -= 1
+
+    @staticmethod
+    def criar(nome, ginasio, evolucoes) -> "LiderGinasio":
+        """Cria um Líder de ginásio com time cheio de pokemons"""
+        lider = LiderGinasio(nome, ginasio, movel=random.choice([True, False]))
+        for _ in range(Treinador.MAX_ATIVOS):
+            cadeia = random.choice(evolucoes)
+            lider.adicionar_pokemon(Pokemon(cadeia[0], cadeia))
+        return lider
+
+
 def vertices_proibidos_para_npc(locais):
-    """Vértices onde não pode haver nem circular NPC (pokémon selvagem ou treinador):
-    laboratório e PMC (batalhas proibidas) e ginásios (já têm seus próprios líderes)."""
     return {locais.get('LAB')} | set(locais.get('PMC', [])) | set(locais.get('GINASIO', []))
 
 
@@ -267,6 +323,7 @@ class Mundo:
         self.itens = {}               # {vertice: [tipo, ...]}
         self.pokemons_selvagens = {}  # {vertice: [Pokemon, ...]}
         self.treinadores_npc = []     # [Treinador, ...] (cada um sabe sua própria posição)
+        self.lideres_ginasio = {}     # {ginasio_vertice: LiderGinasio}
 
     def adicionar_item(self, vertice, tipo="erva"):
         self.itens.setdefault(vertice, []).append(tipo)
@@ -277,6 +334,9 @@ class Mundo:
     def adicionar_treinador_npc(self, treinador: "Treinador"):
         self.treinadores_npc.append(treinador)
 
+    def adicionar_lider_ginasio(self, lider: "LiderGinasio"):
+        self.lideres_ginasio[lider.ginasio] = lider
+
     def vertices_com(self, tipo):
         if tipo == "item":
             return sorted(v for v, lst in self.itens.items() if lst)
@@ -284,19 +344,17 @@ class Mundo:
             return sorted(v for v, lst in self.pokemons_selvagens.items() if lst)
         if tipo == "treinador":
             return sorted({t.posicao for t in self.treinadores_npc})
-        return []  # "ovo" e outras categorias ainda não implementadas no mundo
+        if tipo == "lider":
+            return sorted({l.posicao for l in self.lideres_ginasio.values()})
+        return []  # TODO "ovo" e outras categorias
 
     def retirar_item(self, vertice):
-        """Remove e devolve um item do vértice, ou None se não houver nenhum."""
         lst = self.itens.get(vertice)
         if not lst:
             return None
         return lst.pop()
 
     def mover_npcs(self, grafo, vertices_proibidos):
-        """Move cada Pokémon selvagem e treinador NPC um vértice por vez, para um vizinho
-        aleatório que não seja um vértice proibido (LAB/PMC/GINÁSIO). Fica parado se não
-        houver vizinho permitido."""
         def passo_aleatorio(origem):
             candidatos = [v for v, _ in grafo[origem] if v not in vertices_proibidos]
             return random.choice(candidatos) if candidatos else origem
@@ -310,3 +368,7 @@ class Mundo:
 
         for treinador in self.treinadores_npc:
             treinador.posicao = passo_aleatorio(treinador.posicao)
+
+    def mover_lideres(self, grafo, prox, vertices_proibidos):
+        for lider in self.lideres_ginasio.values():
+            lider.passo(grafo, prox, vertices_proibidos)

@@ -3,7 +3,7 @@ import sys
 import argparse
 from src.grafo import ler_grafo, floyd_warshall
 from src.relogio import Relogio
-from src.entidades import Pokemon, Treinador, Mundo, vertices_proibidos_para_npc
+from src.entidades import Pokemon, Treinador, Mundo, LiderGinasio, vertices_proibidos_para_npc
 from src.interface import loop_comandos
 
 def popular_mundo(mundo, grafo, locais, evolucoes, populacao):
@@ -42,6 +42,12 @@ def popular_mundo(mundo, grafo, locais, evolucoes, populacao):
         restantes[tipo] -= 1
 
 
+def criar_lideres_ginasio(mundo, locais, evolucoes):
+    for i, ginasio in enumerate(locais.get('GINASIO', []), start=1):
+        lider = LiderGinasio.criar(f"Líder {i}", ginasio, evolucoes)
+        mundo.adicionar_lider_ginasio(lider)
+
+
 def main():
     sys.stdout.reconfigure(encoding='utf-8')
     parser = argparse.ArgumentParser()
@@ -55,6 +61,7 @@ def main():
     print(f"Mapa carregado — {len(grafo)} vértices | prazo da Liga: {relogio.prazo()} unidades")
 
     popular_mundo(mundo, grafo, locais, evolucoes, populacao)
+    criar_lideres_ginasio(mundo, locais, evolucoes)
 
     starter = Pokemon(evolucoes[0][0], evolucoes[0])
     treinador = Treinador("Ash", locais['LAB'])

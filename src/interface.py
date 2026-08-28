@@ -54,6 +54,7 @@ def _descrever_local(mundo, treinador: Treinador):
     itens = mundo.itens.get(treinador.posicao, [])
     selvagens = mundo.pokemons_selvagens.get(treinador.posicao, [])
     npcs_aqui = [t for t in mundo.treinadores_npc if t.posicao == treinador.posicao]
+    lideres_aqui = [l for l in mundo.lideres_ginasio.values() if l.posicao == treinador.posicao]
     partes = []
     if itens:
         partes.append("Itens: " + ", ".join(itens))
@@ -61,6 +62,10 @@ def _descrever_local(mundo, treinador: Treinador):
         partes.append("Pokémon selvagem: " + ", ".join(p.nome for p in selvagens))
     if npcs_aqui:
         partes.append("Treinador: " + ", ".join(t.nome for t in npcs_aqui))
+    if lideres_aqui:
+        partes.append("Líder de Ginásio: " + ", ".join(
+            f"{l.nome} (ginásio {l.ginasio})" for l in lideres_aqui
+        ))
     print("Aqui: " + (" | ".join(partes) if partes else "nada de especial"))
 
 
@@ -157,6 +162,7 @@ def _pontos_de_interesse(dist, prox, locais, mundo, treinador: Treinador):
         "Pokemon Selvagem": mundo.vertices_com("pokemon_selvagem"),
         "Item": mundo.vertices_com("item"),
         "Treinador": mundo.vertices_com("treinador"),
+        "Líder de Ginásio": mundo.vertices_com("lider"),
         "Ovo": mundo.vertices_com("ovo")
     }
     print("\n=== PONTOS DE INTERESSE PRÓXIMOS ===")
@@ -249,6 +255,7 @@ def loop_comandos(grafo, locais, treinador, relogio, dist, prox, mundo):
             w = adj[destino]
             prontos = treinador.mover(destino, w, relogio)
             mundo.mover_npcs(grafo, proibidos_npc)
+            mundo.mover_lideres(grafo, prox, proibidos_npc)
             exibir_estado(grafo, treinador, relogio, locais, mundo)
 
             for entrada in prontos:
