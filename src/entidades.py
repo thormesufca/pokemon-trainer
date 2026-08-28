@@ -243,13 +243,30 @@ class Treinador:
     def __repr__(self):
         return f"{self.nome} pos:{self.posicao} XP:{self.xp} insígnias:{len(self.insignias)}"
 
+    @staticmethod
+    def criar_treinador_npc(nome, posicao_inicial, evolucoes) -> Treinador:
+        """Cria um treinador NPC com um time aleatório (3 a MAX_ATIVOS pokémon), para que
+        ele tenha utilidade em batalhas (é preciso ao menos 3 pokémon conscientes para lutar)."""
+        npc = Treinador(nome, posicao_inicial)
+        for _ in range(random.randint(3, Treinador.MAX_ATIVOS)):
+            cadeia = random.choice(evolucoes)
+            npc.adicionar_pokemon(Pokemon(cadeia[0], cadeia))
+        return npc
+
+
+def vertices_proibidos_para_npc(locais):
+    """Vértices onde não pode haver nem circular NPC (pokémon selvagem ou treinador):
+    laboratório e PMC (batalhas proibidas) e ginásios (já têm seus próprios líderes)."""
+    return {locais.get('LAB')} | set(locais.get('PMC', [])) | set(locais.get('GINASIO', []))
+
 
 class Mundo:
-    """Estado do que está espalhado pela região: itens e Pokémon selvagens por vértice."""
+    """Estado do que está espalhado pela região: itens, Pokémon selvagens e treinadores NPC."""
 
     def __init__(self):
         self.itens = {}               # {vertice: [tipo, ...]}
         self.pokemons_selvagens = {}  # {vertice: [Pokemon, ...]}
+        self.treinadores_npc = []     # [Treinador, ...] (cada um sabe sua própria posição)
 
     def adicionar_item(self, vertice, tipo="erva"):
         self.itens.setdefault(vertice, []).append(tipo)
@@ -257,11 +274,16 @@ class Mundo:
     def adicionar_pokemon_selvagem(self, vertice, pokemon):
         self.pokemons_selvagens.setdefault(vertice, []).append(pokemon)
 
+    def adicionar_treinador_npc(self, treinador: "Treinador"):
+        self.treinadores_npc.append(treinador)
+
     def vertices_com(self, tipo):
         if tipo == "item":
             return sorted(v for v, lst in self.itens.items() if lst)
         if tipo == "pokemon_selvagem":
             return sorted(v for v, lst in self.pokemons_selvagens.items() if lst)
+        if tipo == "treinador":
+            return sorted({t.posicao for t in self.treinadores_npc})
         return []  # "ovo" e outras categorias ainda não implementadas no mundo
 
     def retirar_item(self, vertice):
@@ -270,3 +292,21 @@ class Mundo:
         if not lst:
             return None
         return lst.pop()
+
+    def mover_npcs(self, grafo, vertices_proibidos):
+        """Move cada Pokémon selvagem e treinador NPC um vértice por vez, para um vizinho
+        aleatório que não seja um vértice proibido (LAB/PMC/GINÁSIO). Fica parado se não
+        houver vizinho permitido."""
+        def passo_aleatorio(origem):
+            candidatos = [v for v, _ in grafo[origem] if v not in vertices_proibidos]
+            return random.choice(candidatos) if candidatos else origem
+
+        novos_pokemons = {}
+        for vertice, lista in self.pokemons_selvagens.items():
+            for p in lista:
+                destino = passo_aleatorio(vertice)
+                novos_pokemons.setdefault(destino, []).append(p)
+        self.pokemons_selvagens = novos_pokemons
+
+        for treinador in self.treinadores_npc:
+            treinador.posicao = passo_aleatorio(treinador.posicao)

@@ -1,5 +1,5 @@
 from src.grafo import vizinhos, mais_proximo
-from src.entidades import Pokemon, Treinador
+from src.entidades import Pokemon, Treinador, vertices_proibidos_para_npc
 
 
 def _tipo_local(v, locais):
@@ -53,11 +53,14 @@ def exibir_mapa(grafo, locais, treinador):
 def _descrever_local(mundo, treinador: Treinador):
     itens = mundo.itens.get(treinador.posicao, [])
     selvagens = mundo.pokemons_selvagens.get(treinador.posicao, [])
+    npcs_aqui = [t for t in mundo.treinadores_npc if t.posicao == treinador.posicao]
     partes = []
     if itens:
         partes.append("Itens: " + ", ".join(itens))
     if selvagens:
         partes.append("Pokémon selvagem: " + ", ".join(p.nome for p in selvagens))
+    if npcs_aqui:
+        partes.append("Treinador: " + ", ".join(t.nome for t in npcs_aqui))
     print("Aqui: " + (" | ".join(partes) if partes else "nada de especial"))
 
 
@@ -153,6 +156,7 @@ def _pontos_de_interesse(dist, prox, locais, mundo, treinador: Treinador):
         "Hospital (PMC)" : locais.get("PMC", []),
         "Pokemon Selvagem": mundo.vertices_com("pokemon_selvagem"),
         "Item": mundo.vertices_com("item"),
+        "Treinador": mundo.vertices_com("treinador"),
         "Ovo": mundo.vertices_com("ovo")
     }
     print("\n=== PONTOS DE INTERESSE PRÓXIMOS ===")
@@ -172,6 +176,8 @@ def _pontos_de_interesse(dist, prox, locais, mundo, treinador: Treinador):
 
 
 def loop_comandos(grafo, locais, treinador, relogio, dist, prox, mundo):
+    proibidos_npc = vertices_proibidos_para_npc(locais)
+
     print(f"\nBem-vindo, {treinador.nome}! Você está no laboratório.")
     exibir_estado(grafo, treinador, relogio, locais, mundo)
 
@@ -242,6 +248,7 @@ def loop_comandos(grafo, locais, treinador, relogio, dist, prox, mundo):
                 continue
             w = adj[destino]
             prontos = treinador.mover(destino, w, relogio)
+            mundo.mover_npcs(grafo, proibidos_npc)
             exibir_estado(grafo, treinador, relogio, locais, mundo)
 
             for entrada in prontos:
