@@ -75,8 +75,7 @@ class Pokemon:
         self._tempo_inconsciente = 0
 
     def curar(self, amount:int):
-        if self.consciente:
-            self.hp = min(self.MAX_HP, self.hp + amount)
+        self.hp = min(self.MAX_HP, self.hp + amount)
 
     def capturar(self, treinador: Treinador):
         self._dono = treinador
@@ -110,6 +109,7 @@ class Treinador:
         self.ovos = {}  # {Pokemon: dist_restante}
         self.insignias = set()
         self._dist_acumulada = 0
+        self.pmc_pendentes = []  # [{"pokemon", "vertice", "restante", "total", "notificado"}, ...]
 
     @property
     def conscientes(self):
@@ -129,6 +129,59 @@ class Treinador:
         self.posicao = destino
         self._dist_acumulada += peso
         self._processar_distancia(peso)
+        return self._processar_pmc(peso)
+
+    def deixar_no_pmc(self, indice, locais):
+        """Deixa um Pokémon muito machucado (HP < 5) em tratamento no PMC atual."""
+        if self.posicao not in locais.get("PMC", []):
+            raise ValueError("Você não está em um PMC.")
+        if not (0 <= indice < len(self.time)):
+            raise ValueError("Índice de Pokémon inválido.")
+        pokemon = self.time[indice]
+        if not pokemon.muito_machucado:
+            raise ValueError(f"{pokemon.nome} não precisa de tratamento no PMC (HP >= 5).")
+
+        self.time.pop(indice)
+        tempo = random.randint(10, 50)  # tempo necessário parado no PMC, em unidades de distância/tempo
+        self.pmc_pendentes.append({
+            "pokemon": pokemon,
+            "vertice": self.posicao,
+            "restante": tempo,
+            "total": tempo,
+            "notificado": False,
+        })
+        return pokemon, tempo
+
+    def _processar_pmc(self, unidades):
+        """Avança o tempo de tratamento dos Pokémon deixados no PMC; retorna os recém-curados."""
+        prontos = []
+        for entrada in self.pmc_pendentes:
+            if entrada["notificado"]:
+                continue
+            entrada["restante"] = max(0, entrada["restante"] - unidades)
+            if entrada["restante"] == 0:
+                entrada["pokemon"].curar_pmc()
+                entrada["notificado"] = True
+                prontos.append(entrada)
+        return prontos
+
+    def retirar_do_pmc(self, locais):
+        """Recolhe, automaticamente, os Pokémon já curados que aguardam no PMC atual."""
+        if self.posicao not in locais.get("PMC", []):
+            return []
+
+        prontos_aqui = [e for e in self.pmc_pendentes
+                        if e["notificado"] and e["vertice"] == self.posicao]
+        retirados = []
+        for entrada in prontos_aqui:
+            self.pmc_pendentes.remove(entrada)
+            pokemon = entrada["pokemon"]
+            if self.time_cheio:
+                self.laboratorio.append(pokemon)
+            else:
+                self.time.append(pokemon)
+            retirados.append(pokemon)
+        return retirados
 
     def pegar_item(self, tipo: str):
         self.itens[tipo] += 1
@@ -191,6 +244,29 @@ class Treinador:
         return f"{self.nome} pos:{self.posicao} XP:{self.xp} insígnias:{len(self.insignias)}"
 
 
-class MundoStub:
+class Mundo:
+    """Estado do que está espalhado pela região: itens e Pokémon selvagens por vértice."""
+
+    def __init__(self):
+        self.itens = {}               # {vertice: [tipo, ...]}
+        self.pokemons_selvagens = {}  # {vertice: [Pokemon, ...]}
+
+    def adicionar_item(self, vertice, tipo="erva"):
+        self.itens.setdefault(vertice, []).append(tipo)
+
+    def adicionar_pokemon_selvagem(self, vertice, pokemon):
+        self.pokemons_selvagens.setdefault(vertice, []).append(pokemon)
+
     def vertices_com(self, tipo):
-        return []
+        if tipo == "item":
+            return sorted(v for v, lst in self.itens.items() if lst)
+        if tipo == "pokemon_selvagem":
+            return sorted(v for v, lst in self.pokemons_selvagens.items() if lst)
+        return []  # "ovo" e outras categorias ainda não implementadas no mundo
+
+    def retirar_item(self, vertice):
+        """Remove e devolve um item do vértice, ou None se não houver nenhum."""
+        lst = self.itens.get(vertice)
+        if not lst:
+            return None
+        return lst.pop()
