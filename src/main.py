@@ -8,16 +8,34 @@ from src.interface import loop_comandos
 
 
 def popular_mundo(mundo, grafo, locais, evolucoes, populacao):
-    vertices = list(grafo.keys())
-    # batalhas são proibidas no PMC e no laboratório: nenhum pokémon selvagem pode surgir lá
-    proibidos_para_batalha = {locais.get('LAB')} | set(locais.get('PMC', []))
-    vertices_para_pokemon = [v for v in vertices if v not in proibidos_para_batalha] or vertices
-    for _ in range(populacao.get('POKEMON', 0)):
-        cadeia = random.choice(evolucoes)
-        p = Pokemon(cadeia[0], cadeia)
-        mundo.adicionar_pokemon_selvagem(random.choice(vertices_para_pokemon), p)
-    for _ in range(populacao.get('ITENS', 0)):
-        mundo.adicionar_item(random.choice(vertices))
+    # Não pode ter item ou pokemon em vértices 'especiais'
+    proibidos = {locais.get('LAB')} | set(locais.get('PMC', [])) | set(locais.get('GINASIO', []))
+    vertices_livres = [v for v in grafo if v not in proibidos]
+
+    #Gera ordem aleatoria de vertices para não ficar muito sequencial
+    random.shuffle(vertices_livres)
+
+    #Dicionário para guardar a quantidade de cada entidade colocada
+    restantes = {
+        "pokemon": populacao.get('POKEMON', 0),
+        "item": populacao.get('ITENS', 0),
+        # "treinador": populacao.get('TREINADORES', 0),  # TODO: treinadores selvagens (ainda não implementado)
+    }
+
+    #Em cada vertice livre, adiciona uma entidade, decrementando sua quantidade
+    for vertice in vertices_livres:
+        candidatos = [tipo for tipo, qtd in restantes.items() if qtd > 0]
+        if not candidatos:
+            break  # nada mais a distribuir
+
+        tipo = random.choice(candidatos)
+        if tipo == "pokemon":
+            cadeia = random.choice(evolucoes)
+            mundo.adicionar_pokemon_selvagem(vertice, Pokemon(cadeia[0], cadeia))
+        elif tipo == "item":
+            mundo.adicionar_item(vertice)
+
+        restantes[tipo] -= 1
 
 
 def main():
