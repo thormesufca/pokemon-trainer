@@ -1,3 +1,6 @@
+import os
+
+
 def ler_grafo(caminho):
     """
     Lê o arquivo de entrada e devolve:
@@ -6,6 +9,10 @@ def ler_grafo(caminho):
       - populacao: dict com TREINADORES, POKEMON, ITENS
       - evolucoes: lista de listas [[fase1, fase2, ...], ...]
     """
+    
+    if not os.path.isfile(caminho):
+        raise FileNotFoundError(f"Arquivo de mapa não encontrado: {caminho}")
+
     grafo = {}
     locais = {"PMC": [], "GINASIO": []}
     populacao = {}
