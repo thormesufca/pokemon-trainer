@@ -159,6 +159,7 @@ def _pontos_de_interesse(dist, prox, locais, mundo, treinador: Treinador):
     categorias = {
         "Ginásio" : locais.get("GINASIO", []),
         "Hospital (PMC)" : locais.get("PMC", []),
+        "Estádio": [locais.get("ESTADIO")] if locais.get("ESTADIO") is not None else [],
         "Pokemon Selvagem": mundo.vertices_com("pokemon_selvagem"),
         "Item": mundo.vertices_com("item"),
         "Treinador": mundo.vertices_com("treinador"),
@@ -267,8 +268,8 @@ def loop_comandos(grafo, locais, treinador, relogio, dist, prox, mundo):
             if relogio.acabou():
                 print("Tempo esgotado! A Liga fechou as portas.")
                 break
-            if treinador.classificado:
-                print("Você coletou 8 insígnias — rumo ao Estádio!")
+            if treinador.classificado and treinador.posicao == locais.get("ESTADIO"):
+                print("Você se inscreveu na Liga Pokémon com 8 insígnias — VITÓRIA!")
                 break
 
         else:
