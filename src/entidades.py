@@ -256,8 +256,9 @@ class Treinador:
 class LiderGinasio(Treinador):
     """Líder de um ginásio: fixo ou móvel em relação ao seu vértice de origem."""
 
+    #Tempo fora deve ser aproximadamente metade do tempo em casa, porque presume vagando e retornando
     TEMPO_MIN_FORA = 10
-    TEMPO_MAX_FORA = 50
+    TEMPO_MAX_FORA = 30
     TEMPO_MIN_CASA = 10
     TEMPO_MAX_CASA = 50
 
