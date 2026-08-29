@@ -128,9 +128,10 @@ class Treinador:
         relogio.avancar(peso)
         self.posicao = destino
         self._dist_acumulada += peso
-        self._processar_distancia(peso)
-        return self._processar_pmc(peso)
-
+        chocados = self._processar_distancia(peso)
+        pmc_prontos = self._processar_pmc(peso)
+        return pmc_prontos, chocados
+    
     def deixar_no_pmc(self, indice, locais):
         """Deixa um Pokémon muito machucado (HP < 5) em tratamento no PMC atual."""
         if self.posicao not in locais.get("PMC", []):
@@ -210,25 +211,29 @@ class Treinador:
         self.laboratorio.append(enviado)
         self.time = candidatos
 
-
     def _processar_distancia(self, distancia):
-        # XP por distância para cada Pokémon do time
         for p in self.time:
             p.curar_natural(distancia)
             ganho_xp = self._dist_acumulada // self.XP_POR_DISTANCIA
             if ganho_xp > 0:
                 p.ganhar_xp(ganho_xp)
 
-        # chocação de ovos
+        chocados = []
         for ovo in list(self.ovos):
             self.ovos[ovo] -= distancia
             if self.ovos[ovo] <= 0:
                 del self.ovos[ovo]
+                ovo.capturar(self)
                 if len(self.time) < self.MAX_ATIVOS:
                     self.time.append(ovo)
+                else:
+                    self.laboratorio.append(ovo)
+                chocados.append(ovo)
 
         if self._dist_acumulada >= self.XP_POR_DISTANCIA:
             self._dist_acumulada %= self.XP_POR_DISTANCIA
+
+        return chocados
 
     def ganhar_xp(self, n):
         self.xp += n
@@ -324,6 +329,7 @@ class Mundo:
         self.itens = {}               # {vertice: [tipo, ...]}
         self.pokemons_selvagens = {}  # {vertice: [Pokemon, ...]}
         self.treinadores_npc = []     # [Treinador, ...] (cada um sabe sua própria posição)
+        self.ovos = {}                # {vertice: [Pokemon, ...]}
         self.lideres_ginasio = {}     # {ginasio_vertice: LiderGinasio}
 
     def adicionar_item(self, vertice, tipo="erva"):
@@ -347,10 +353,21 @@ class Mundo:
             return sorted({t.posicao for t in self.treinadores_npc})
         if tipo == "lider":
             return sorted({l.posicao for l in self.lideres_ginasio.values()})
-        return []  # TODO "ovo" e outras categorias
+        if tipo == "ovo":
+            return sorted(v for v, lst in self.ovos.items() if lst)
+        return []
 
     def retirar_item(self, vertice):
         lst = self.itens.get(vertice)
+        if not lst:
+            return None 
+        return lst.pop()
+
+    def adicionar_ovo(self, vertice, pokemon):
+        self.ovos.setdefault(vertice, []).append(pokemon)
+
+    def retirar_ovo(self, vertice):
+        lst = self.ovos.get(vertice)
         if not lst:
             return None
         return lst.pop()
