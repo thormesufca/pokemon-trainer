@@ -1,3 +1,4 @@
+import random
 from src.grafo import vizinhos, mais_proximo
 from src.entidades import Pokemon, Treinador, vertices_proibidos_para_npc
 
@@ -27,6 +28,8 @@ def _comandos_contextuais(locais, treinador: Treinador, mundo):
             extras.append("deixar <índice>")
         if any(e["notificado"] and e["vertice"] == treinador.posicao for e in treinador.pmc_pendentes):
             extras.append("retirar")
+    if treinador.posicao in mundo.vertices_com("ovo"):
+        extras.append("pegar ovo")
     return extras
 
 
@@ -216,6 +219,18 @@ def loop_comandos(grafo, locais, treinador, relogio, dist, prox, mundo):
             treinador.pegar_item(tipo)
             print(f"Você pegou: {tipo}")
 
+        elif cmd == "pegar ovo":
+            if len(treinador.time) + len(treinador.ovos) >= treinador.MAX_TOTAL:
+                print("Você não pode carregar mais ovos ou Pokémon no momento.")
+                continue
+            ovo = mundo.retirar_ovo(treinador.posicao)
+            if ovo is None:
+                print("Não há ovos aqui.")
+                continue
+            dist_choca = random.randint(50, 200)
+            treinador.ovos[ovo] = dist_choca
+            print(f"Você pegou um ovo de {ovo.nome}! Ele choca em {dist_choca} unidades de distância.")
+
         elif cmd == "interesse":
             _pontos_de_interesse(dist, prox, locais, mundo, treinador)
 
@@ -254,7 +269,7 @@ def loop_comandos(grafo, locais, treinador, relogio, dist, prox, mundo):
                 print(f"Vértice {destino} não é vizinho. Vizinhos: {vizs}")
                 continue
             w = adj[destino]
-            prontos = treinador.mover(destino, w, relogio)
+            prontos, chocados = treinador.mover(destino, w, relogio)
             mundo.mover_npcs(grafo, proibidos_npc)
             mundo.mover_lideres(grafo, prox, proibidos_npc)
             exibir_estado(grafo, treinador, relogio, locais, mundo)
@@ -262,6 +277,10 @@ def loop_comandos(grafo, locais, treinador, relogio, dist, prox, mundo):
             for entrada in prontos:
                 rota = _descrever_rota(dist, prox, treinador.posicao, [entrada["vertice"]])
                 print(f"\n✔ {entrada['pokemon'].nome} foi curado no PMC e está te esperando! Vá até {rota}")
+
+            for ovo in chocados:
+                destino_ovo = "seu time" if ovo in treinador.time else "o laboratório (time cheio)"
+                print(f"\nUm ovo chocou! Bem-vindo, {ovo.nome}! Foi para {destino_ovo}.")
 
             _verificar_pokemons_machucados(dist, prox, locais, treinador)
 
