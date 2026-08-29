@@ -19,6 +19,7 @@ def popular_mundo(mundo, grafo, locais, evolucoes, populacao):
         "pokemon": populacao.get('POKEMON', 0),
         "item": populacao.get('ITENS', 0),
         "treinador": populacao.get('TREINADORES', 0),
+        "ovo": populacao.get('OVOS', 0),
     }
 
     #Em cada vertice livre, adiciona uma entidade, decrementando sua quantidade
@@ -38,6 +39,9 @@ def popular_mundo(mundo, grafo, locais, evolucoes, populacao):
             contador_treinadores += 1
             npc = Treinador.criar_treinador_npc(f"Treinador {contador_treinadores}", vertice, evolucoes)
             mundo.adicionar_treinador_npc(npc)
+        elif tipo == "ovo":
+            cadeia = random.choice(evolucoes)
+            mundo.adicionar_ovo(vertice, Pokemon(cadeia[0], cadeia))
 
         restantes[tipo] -= 1
 
@@ -58,13 +62,27 @@ def main():
     relogio = Relogio(grafo)
     mundo = Mundo()
 
-    print(f"Mapa carregado — {len(grafo)} vértices | prazo da Liga: {relogio.prazo()} unidades")
-
     popular_mundo(mundo, grafo, locais, evolucoes, populacao)
     criar_lideres_ginasio(mundo, locais, evolucoes)
 
-    starter = Pokemon(evolucoes[0][0], evolucoes[0])
-    treinador = Treinador("Ash", locais['LAB'])
+    print(f"Mapa carregado — {len(grafo)} vértices | prazo da Liga: {relogio.prazo()} unidades")
+
+    nome_jogador = input("Qual é o seu nome, treinador? ").strip() or "Ash"
+
+    starters = evolucoes[:3]
+    print("\nEscolha o seu Pokémon inicial:")
+    for i, cadeia in enumerate(starters):
+        print(f"  [{i}] {cadeia[0]}")
+
+    while True:
+        escolha = input("> ").strip()
+        if escolha.isdigit() and 0 <= int(escolha) < len(starters):
+            break
+        print("Escolha inválida.")
+
+    cadeia_escolhida = starters[int(escolha)]
+    starter = Pokemon(cadeia_escolhida[0], cadeia_escolhida)
+    treinador = Treinador(nome_jogador, locais['LAB'])
     treinador.adicionar_pokemon(starter)
 
     loop_comandos(grafo, locais, treinador, relogio, distancias, proximos, mundo)
