@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 from collections import Counter
 from typing import List
+from interface import adicionar_pokemon_escolha
 
 class Pokemon:
     MAX_HP = 100
@@ -80,6 +81,22 @@ class Pokemon:
     def capturar(self, treinador: Treinador):
         self._dono = treinador
 
+    #Parte do sistema de batalha, usado na chamada da batalha pelo treinador,
+    #em que existe chance de esquiva e de crítico
+    def atacar(self, pkmnAdv: Pokemon):
+        if (pkmnAdv.dp < self.ap):
+            danoF = self.ap - pkmnAdv.dp
+            ModuloDifXP = abs(self.xp - pkmnAdv.xp)
+            chance = min(1.0, ModuloDifXP / 1000)
+            #chance de esquiva
+            if random.random() < chance :
+                return print(f"{pkmnAdv.nome} esquivou!")
+            #chance de crítico
+            if random.random() < chance:    
+                return pkmnAdv.receber_dano(danoF*2)
+            return pkmnAdv.receber_dano(danoF)  
+        else :
+            return print(f"{pkmnAdv.nome} não recebeu dano")        
 
     def __repr__(self):
         return f"{self.nome} HP:{self.hp} XP:{self.xp} AP:{self.ap} DP:{self.dp}"
@@ -108,6 +125,7 @@ class Treinador:
         self.itens = Counter()
         self.ovos = {}  # {Pokemon: dist_restante}
         self.insignias = set()
+        self.usuario = True
         self._dist_acumulada = 0
         self.pmc_pendentes = []  # [{"pokemon", "vertice", "restante", "total", "notificado"}, ...]
 
@@ -255,7 +273,130 @@ class Treinador:
         for _ in range(random.randint(3, Treinador.MAX_ATIVOS)):
             cadeia = random.choice(evolucoes)
             npc.adicionar_pokemon(Pokemon(cadeia[0], cadeia))
+        npc.usuario = False
         return npc
+    #Sistema de batalha se iniciando a partir do treinador
+    def iniciarBatalha(self, adv: Treinador):
+        if adv.usuario == True :
+            resp = input(f"{adv.nome} Quer batalhar? (s/n)")
+            if(resp.lower() == 'n') :
+                print(f"Você negou a batalha!")
+                return
+        turno = 1
+        t1 = self.conscientes[:3]
+        t2 = adv.conscientes[:3]
+        if (self.pode_batalhar and adv.pode_batalhar):
+            pk1 = t1[0]
+            pk2 = t2[0]
+            while len(t1) > 0 and len(t2) > 0:
+                print(f"Turno {turno}")
+                if self.usuario == True :
+                    resp = input(f"{adv.nome} Quer desistir da batalha? (s/n)")
+                    if(resp.lower() == 's') :
+                        print(f"Você desistiu da batalha e perdeu por WO!")
+                        if self.xp <= adv.xp:
+                            self.ganhar_xp(3)
+                        else :
+                            self.ganhar_xp(1)
+                        return
+                pk2.atacar(pk1)
+                if not pk1.consciente :
+                    #caso o pokemon do desafiante seja derrotado pelo golpe
+                    pk1.ganhar_xp(3)
+                    t1.pop(0)
+                    if self.usuario == True :
+                        if len(t1) == 2:
+                            while(True):
+                                escolha = int(input(f'escolha outro pokemon para batalhar'f"(({t1[0].nome})1/({t1[1].nome})2)"))
+                                if(escolha == 1) :
+                                    pk1 = t1[0]
+                                    break
+                                elif(escolha == 2) :
+                                    pk1 = t1[1]
+                                    break
+                        elif len(t1) == 1 :
+                            pk1 = t1[0]
+                    else :
+                        pk1 = t1[0]
+                    pk2.ganhar_xp(10)
+                else:
+                    #caso o pokemon do desafiante sobreviva ao golpe
+                    pk1.atacar(pk2)
+                    if not pk2.consciente :
+                        pk2.ganhar_xp(3)
+                        t2.pop(0)
+                        if adv.usuario == True :
+                            if len(t2) == 2:
+                                while(True):
+                                    escolha = int(input(f'escolha outro pokemon para batalhar'f"(({t2[0].nome})1/({t2[1].nome})2)"))
+                                    if(escolha == 1) :
+                                        pk2 = t2[0]
+                                        break
+                                    elif(escolha == 2) :
+                                        pk2 = t2[1]
+                                        break
+                            elif len(t2) == 1 :
+                                pk2 = t2[0]
+                        else :
+                            pk2 = t2[0]
+                        pk1.ganhar_xp(10)
+                turno+=1   
+            else :
+                print(f"Não é possível iniciar a batalha")   
+            #Casos de vitórias e derrotas(Desafiante/Desafiado)                  
+            if len(t1) == 0 and self.xp < adv.xp :
+                adv.ganhar_xp(1)
+                print(f"{adv.nome} Ganhou!")
+            elif len(t1) == 0 and self.xp >= adv.xp :
+                adv.ganhar_xp(3)
+                print(f"{adv.nome} Ganhou!")
+            if len(t2) == 0 and adv.xp < self.xp :
+                self.ganhar_xp(1)
+                print(f"{self.nome} Ganhou!")
+            elif len(t2) == 0 and adv.xp >= self.xp :
+                self.ganhar_xp(3)
+                print(f"{self.nome} Ganhou!") 
+        
+    def iniciarCaptura(self, pkslvg: Pokemon):
+        if self.usuario == True:    
+            resp = input(f"{self.nome} Quer tentar capturar o Pokemon? (s/n)")
+            if(resp.lower() == 'n') :
+                print(f"Você deixou fugir!")
+                return
+            turno = 1
+            t1 = self.conscientes[:3]
+            backupPkmn: List[Pokemon] = t1[0]
+            if(self.pode_batalhar):
+                while len(t1) > 0 and pkslvg.consciente:
+                    print(f"Turno {turno}")
+                    pk1 = t1[0]
+                    pkslvg.atacar(pk1)
+                    if not pk1.consciente :
+                        #caso o pokemon do desafiante seja derrotado pelo golpe
+                        pk1.ganhar_xp(3)
+                        t1.pop(0)
+                        backupPkmn.append(pk1)
+                        pkslvg.ganhar_xp(10)
+                    else :
+                        #caso o pokemon do desafiante sobreviva ao golpe
+                        pk1.atacar(pkslvg)
+                        if not pkslvg.consciente :
+                            pkslvg.ganhar_xp(3)
+                            pk1.ganhar_xp(10)
+                    if self.usuario == True :
+                        resp = input(f"{self.nome} Quer desistir da captura? (s/n)")
+                        if(resp.lower() == 's') :
+                            print(f"Você desistiu da captura!")
+                            return
+                    turno+=1
+                if not pkslvg.consciente :
+                    adicionar_pokemon_escolha(self, pkslvg)
+                    pkslvg.ganhar_xp(3)
+                    for pk in backupPkmn:
+                        pk.ganhar_xp(3)
+                    print(f"{self.nome} capturou um {pkslvg.nome} selvagem!")
+                else:
+                    print(f"Você perdeu...") 
 
 
 class LiderGinasio(Treinador):
@@ -273,6 +414,7 @@ class LiderGinasio(Treinador):
         self.movel = movel
         self.estado = "EM_CASA"  # EM_CASA | VAGANDO | RETORNANDO
         self.contador = random.randint(self.TEMPO_MIN_CASA, self.TEMPO_MAX_CASA) if movel else None #Inicia contador com tempo em casa, se móvel
+        self.usuario = False
 
     @property
     def presente(self):
