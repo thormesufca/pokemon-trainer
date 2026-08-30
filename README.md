@@ -89,6 +89,7 @@ A cada turno, o jogo mostra sua posição atual, os vizinhos alcançáveis, seu 
 |---|---|
 | `ir <vértice>` | Move para um vértice vizinho (gasta tempo igual ao peso da aresta) |
 | `mapa` | Mostra os vizinhos do vértice atual e o custo até eles |
+| `aqui` | Reimprime a posição atual, o que há no vértice, vizinhos e time — a mesma tela mostrada depois de um `ir` |
 | `status` | Mostra seu time, XP, insígnias, itens, ovos e pokémon em tratamento no PMC |
 | `poi` | Mostra o ponto mais próximo de cada tipo (ginásio, PMC, estádio, pokémon selvagem, item, treinador, líder, ovo) e a rota até lá |
 | `pegar` | Pega um item (erva) no vértice atual, se houver |
@@ -107,6 +108,19 @@ Observações importantes:
 - **Vencer** exige chegar ao estádio já classificado, dentro do prazo mostrado no início da partida (o relógio avança conforme você se move e batalha).
 - Treinadores NPC podem, por conta própria, desafiar você ao acaso quando vocês se encontram no mesmo vértice.
 - Você pode carregar no máximo 6 pokémon ativos (mais ovos ainda não chocados, até 7 no total); pokémon excedentes vão para o laboratório.
+
+## Vantagens entre tipos (item extra)
+
+Cada pokémon tem um ou mais tipos elementais (água, fogo, grama, elétrico, pedra, terra, veneno, fantasma, psíquico, voador), atribuídos por espécie em `src/entities/tipos.py`. Os dados de tipo e as relações de vantagem/desvantagem entre eles foram extraídos da [PokéAPI](https://pokeapi.co/).
+
+O dano base (diferença entre AP do atacante e DP do defensor) é multiplicado pelo efeito desse tipo contra **cada um** dos tipos do defensor (um pokémon com dois tipos, como o Charizard — fogo/voador — soma os dois efeitos):
+
+- **Dano em dobro** se o tipo do atacante é forte contra o tipo do defensor (ex.: fogo vs. grama)
+- **Metade do dano** se é fraco contra (ex.: fogo vs. água)
+- **Dano zero** se o defensor é imune (ex.: elétrico vs. terra)
+- **Dano normal** nos demais casos (multiplicador 1, quando a relação não está listada)
+
+O multiplicador de tipo é aplicado sobre o dano base, e o golpe crítico (quando ocorre) dobra o resultado já ajustado por tipo. O jogo avisa o resultado na tela ("É supereficaz!", "Não é muito eficaz...", "Não afeta {pokémon}..."). A tabela de vantagens está em `RELACOES_TIPO` (`src/entities/tipos.py`) e cobre os tipos que de fato aparecem nas cadeias evolutivas do jogo.
 
 ## Estrutura do projeto
 
