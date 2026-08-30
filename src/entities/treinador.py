@@ -136,6 +136,30 @@ class Treinador:
         self.laboratorio.append(enviado)
         self.time = candidatos
 
+    def trocar_com_laboratorio(self, indice_time, indice_laboratorio, locais):
+        """Troca um Pokémon do time por um do laboratório; só é permitido no laboratório."""
+        if self.posicao != locais.get("LAB"):
+            raise ValueError("Você não está no laboratório.")
+        if not (0 <= indice_time < len(self.time)):
+            raise ValueError("Índice de Pokémon do time inválido.")
+        if not (0 <= indice_laboratorio < len(self.laboratorio)):
+            raise ValueError("Índice de Pokémon do laboratório inválido.")
+
+        do_time = self.time[indice_time]
+        do_laboratorio = self.laboratorio[indice_laboratorio]
+        self.time[indice_time] = do_laboratorio
+        self.laboratorio[indice_laboratorio] = do_time
+        return do_time, do_laboratorio
+
+    def trocar_posicoes_time(self, indice_a, indice_b):
+        """Troca a posição de dois Pokémon dentro do time."""
+        if not (0 <= indice_a < len(self.time)):
+            raise ValueError("Índice de Pokémon inválido.")
+        if not (0 <= indice_b < len(self.time)):
+            raise ValueError("Índice de Pokémon inválido.")
+
+        self.time[indice_a], self.time[indice_b] = self.time[indice_b], self.time[indice_a]
+
     def _processar_distancia(self, distancia):
         for p in self.time:
             p.curar_natural(distancia)
@@ -144,9 +168,13 @@ class Treinador:
                 p.ganhar_xp(ganho_xp)
 
         chocados = []
+        restante = distancia
         for ovo in list(self.ovos):
-            self.ovos[ovo] -= distancia
+            if restante <= 0:
+                break
+            self.ovos[ovo] -= restante
             if self.ovos[ovo] <= 0:
+                restante = -self.ovos[ovo]
                 del self.ovos[ovo]
                 ovo.capturar(self)
                 if len(self.time) < self.MAX_ATIVOS:
@@ -154,6 +182,8 @@ class Treinador:
                 else:
                     self.laboratorio.append(ovo)
                 chocados.append(ovo)
+            else:
+                restante = 0
 
         if self._dist_acumulada >= self.XP_POR_DISTANCIA:
             self._dist_acumulada %= self.XP_POR_DISTANCIA

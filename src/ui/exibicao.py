@@ -19,7 +19,7 @@ def pode_batalhar_aqui(locais, vertice):
     return vertice != locais.get('LAB') and vertice not in locais.get('PMC', [])
 
 
-COMANDOS_FIXOS = ["ir <v>", "mapa", "status", "poi", "sair"]
+COMANDOS_FIXOS = ["ir <v>", "mapa", "aqui", "status", "poi", "sair"]
 
 
 def _comandos_contextuais(locais, treinador: Treinador, mundo):
@@ -35,6 +35,10 @@ def _comandos_contextuais(locais, treinador: Treinador, mundo):
             extras.append("retirar")
     if treinador.posicao in mundo.vertices_com("ovo"):
         extras.append("pegar ovo")
+    if treinador.posicao == locais.get("LAB") and treinador.laboratorio:
+        extras.append("trocar <índice time> <índice laboratório>")
+    if len(treinador.time) >= 2:
+        extras.append("reordenar <índice> <índice>")
     if pode_batalhar_aqui(locais, treinador.posicao):
         if treinador.posicao in mundo.vertices_com("treinador") or treinador.posicao in mundo.vertices_com("lider"):
             extras.append("desafiar")
@@ -109,6 +113,9 @@ def exibir_status(treinador: Treinador):
             print(f"  [{i}] {p}  {'[incon.]' if not p.consciente else ''}")
     else:
         print("  (sem Pokémon)")
+    if treinador.laboratorio:
+        for i, p in enumerate(treinador.laboratorio):
+            print(f"  Laboratório [{i}] {p}")
     if treinador.pmc_pendentes:
         for entrada in treinador.pmc_pendentes:
             if entrada["notificado"]:
