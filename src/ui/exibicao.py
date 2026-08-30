@@ -19,7 +19,7 @@ def pode_batalhar_aqui(locais, vertice):
     return vertice != locais.get('LAB') and vertice not in locais.get('PMC', [])
 
 
-COMANDOS_FIXOS = ["ir <v>", "mapa", "status", "interesse", "sair"]
+COMANDOS_FIXOS = ["ir <v>", "mapa", "status", "poi", "sair"]
 
 
 def _comandos_contextuais(locais, treinador: Treinador, mundo):
@@ -27,9 +27,10 @@ def _comandos_contextuais(locais, treinador: Treinador, mundo):
     extras = []
     if treinador.posicao in mundo.vertices_com("item"):
         extras.append("pegar")
+    if any(qtd > 0 for qtd in treinador.itens.values()):
+        extras.append("usar <item>")
     if treinador.posicao in locais.get("PMC", []):
-        if any(p.muito_machucado for p in treinador.time):
-            extras.append("deixar <índice>")
+        extras.append("deixar <índice>")
         if any(e["notificado"] and e["vertice"] == treinador.posicao for e in treinador.pmc_pendentes):
             extras.append("retirar")
     if treinador.posicao in mundo.vertices_com("ovo"):
@@ -67,17 +68,21 @@ def _descrever_local(mundo, treinador: Treinador):
     selvagens = mundo.pokemons_selvagens.get(treinador.posicao, [])
     npcs_aqui = [t for t in mundo.treinadores_npc if t.posicao == treinador.posicao]
     lideres_aqui = [l for l in mundo.lideres_ginasio.values() if l.posicao == treinador.posicao]
+    ovos_aqui = mundo.ovos.get(treinador.posicao, [])
     partes = []
     if itens:
         partes.append("Itens: " + ", ".join(itens))
     if selvagens:
-        partes.append("Pokémon selvagem: " + ", ".join(p.nome for p in selvagens))
+        partes.append("Pokémon selvagem: " + ", ".join(str(p) for p in selvagens))
     if npcs_aqui:
         partes.append("Treinador: " + ", ".join(t.nome for t in npcs_aqui))
     if lideres_aqui:
         partes.append("Líder de Ginásio: " + ", ".join(
             f"{l.nome} (ginásio {l.ginasio})" for l in lideres_aqui
         ))
+    if ovos_aqui:
+        partes.append("Ovo ")
+
     print("Aqui: " + (" | ".join(partes) if partes else "nada de especial"))
 
 

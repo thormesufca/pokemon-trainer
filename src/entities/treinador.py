@@ -40,7 +40,13 @@ class Treinador:
 
     @property
     def pode_batalhar(self):
+        """Batalha contra outro treinador exige 3 pokémon conscientes (regra exclusiva disso)."""
         return len(self.conscientes) >= 3
+
+    @property
+    def pode_capturar(self):
+        """Tem que ter pelo menos 1 pokemon consciente."""
+        return len(self.conscientes) >= 1
 
     @property
     def time_cheio(self):
@@ -61,9 +67,6 @@ class Treinador:
         if not (0 <= indice < len(self.time)):
             raise ValueError("Índice de Pokémon inválido.")
         pokemon = self.time[indice]
-        if not pokemon.muito_machucado:
-            raise ValueError(f"{pokemon.nome} não precisa de tratamento no PMC (HP >= 5).")
-
         self.time.pop(indice)
         tempo = random.randint(10, 50)  # tempo necessário parado no PMC, em unidades de distância/tempo
         self.pmc_pendentes.append({
@@ -201,7 +204,7 @@ class Treinador:
             pk1 = t1[0]
             pk2 = t2[0]
             while len(t1) > 0 and len(t2) > 0:
-                print(f"Turno {turno}")
+                print(f"{('='*20)}Turno {turno}{('=' * 20)}")
                 if adv.usuario == True :  # só o desafiado pode desistir — o desafiante (self) não pode
                     resp = input(f"{adv.nome} Quer desistir da batalha? (s/n)")
                     if(resp.lower() == 's') :
@@ -284,10 +287,10 @@ class Treinador:
             turno = 1
             t1 = self.conscientes[:3]
             backupPkmn: List[Pokemon] = []
-            if(self.pode_batalhar):
+            if(self.pode_capturar):
                 relogio.avancar(1)  # anda o relógio em 1 (tempo de batalha)
                 while len(t1) > 0 and pkslvg.consciente:
-                    print(f"Turno {turno}")
+                    print(f"{('=' * 20)}Turno {turno}{('=' * 20)}")
                     pk1 = t1[0]
                     pkslvg.atacar(pk1)
                     if not pk1.consciente :
@@ -306,7 +309,7 @@ class Treinador:
                                 pk1.ganhar_ponto_batalha()
                             pkslvg.ganhar_xp(3)
                             pk1.ganhar_xp(10)
-                    if self.usuario == True :
+                    if t1 and pkslvg.consciente and self.usuario == True :  # só pergunta se a captura ainda está em andamento
                         resp = input(f"{self.nome} Quer desistir da captura? (s/n)")
                         if(resp.lower() == 's') :
                             print(f"Você desistiu da captura!")
