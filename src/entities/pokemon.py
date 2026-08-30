@@ -1,14 +1,14 @@
 from __future__ import annotations
 import random
 
-from .tipos import tipos_de
+from .tipos import tipos_de, multiplicador_tipo
 
 
 class Pokemon:
     MAX_HP = 100
     XP_EVOLUCAO = 1000
     BONUS_EVOLUCAO = 0.30
-    XP_ALEATORIO_MAX = 150
+    XP_ALEATORIO_MAX = 100
 
     def __init__(self, nome, cadeia_evolutiva, ap_base=None, dp_base=None):
         self.nome = nome
@@ -100,6 +100,16 @@ class Pokemon:
         print(f"{self.nome} ataca {pkmnAdv.nome}")
         if (dp_efetivo_adv < ap_efetivo):
             danoF = ap_efetivo - dp_efetivo_adv
+            if self.tipos:
+                #vantagem/desvantagem de tipo: usa o tipo primário do atacante contra todos os tipos do defensor
+                mult = multiplicador_tipo(self.tipos[0], pkmnAdv.tipos)
+                danoF = int(danoF * mult)
+                if mult == 0:
+                    print(f"Não afeta {pkmnAdv.nome}...")
+                elif mult > 1:
+                    print("É supereficaz!")
+                elif mult < 1:
+                    print("Não é muito eficaz...")
             ModuloDifXP = abs(self.xp - pkmnAdv.xp)
             chance = min(1.0, ModuloDifXP / 1000)
             #chance de esquiva
