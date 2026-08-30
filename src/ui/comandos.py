@@ -42,6 +42,11 @@ def _cmd_mapa(ctx):
     return False
 
 
+def _cmd_aqui(ctx):
+    exibir_estado(ctx.grafo, ctx.treinador, ctx.relogio, ctx.locais, ctx.mundo)
+    return False
+
+
 def _cmd_status(ctx):
     exibir_status(ctx.treinador)
     verificar_pokemons_machucados(ctx.dist, ctx.prox, ctx.locais, ctx.treinador)
@@ -180,6 +185,34 @@ def _cmd_deixar(ctx, partes):
     return False
 
 
+def _cmd_trocar(ctx, partes):
+    if len(partes) != 3 or not partes[1].isdigit() or not partes[2].isdigit():
+        print("Uso: trocar <índice no time> <índice no laboratório> (veja os índices em 'status')")
+        return False
+    try:
+        do_time, do_laboratorio = ctx.treinador.trocar_com_laboratorio(
+            int(partes[1]), int(partes[2]), ctx.locais
+        )
+    except ValueError as e:
+        print(str(e))
+        return False
+    print(f"Você trocou {do_time.nome} pelo {do_laboratorio.nome}, que estava no laboratório.")
+    return False
+
+
+def _cmd_reordenar(ctx, partes):
+    if len(partes) != 3 or not partes[1].isdigit() or not partes[2].isdigit():
+        print("Uso: reordenar <índice> <índice> (veja os índices em 'status')")
+        return False
+    try:
+        ctx.treinador.trocar_posicoes_time(int(partes[1]), int(partes[2]))
+    except ValueError as e:
+        print(str(e))
+        return False
+    print("Posições trocadas no time.")
+    return False
+
+
 def _cmd_usar(ctx, partes):
     if len(partes) != 2:
         print("Uso: usar <item> (veja os itens em 'status')")
@@ -239,6 +272,7 @@ def _cmd_ir(ctx, partes):
 COMANDOS_SEM_ARGUMENTO = {
     "sair": _cmd_sair,
     "mapa": _cmd_mapa,
+    "aqui": _cmd_aqui,
     "status": _cmd_status,
     "pegar": _cmd_pegar,
     "pegar ovo": _cmd_pegar_ovo,
@@ -253,4 +287,6 @@ COMANDOS_COM_ARGUMENTO = {
     "deixar": _cmd_deixar,
     "usar": _cmd_usar,
     "ir": _cmd_ir,
+    "trocar": _cmd_trocar,
+    "reordenar": _cmd_reordenar,
 }
