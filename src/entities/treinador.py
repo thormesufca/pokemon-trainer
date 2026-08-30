@@ -9,6 +9,7 @@ class Treinador:
     MAX_ATIVOS = 6
     MAX_TOTAL = 7  # ativos + ovos
     XP_POR_DISTANCIA = 100  # 1 XP a cada 100 unidades
+    DIST_CHOCAGEM = 100  # distância percorrida para um ovo chocar
 
     def _efeito_erva(self):
         for p in self.time:
@@ -162,9 +163,11 @@ class Treinador:
     def coletar_insignia(self, ginasio_id):
         self.insignias.add(ginasio_id)
 
-    @property
-    def classificado(self):
-        return len(self.insignias) >= 8
+    def classificado(self, total_ginasios):
+        """Precisa de 8 insígnias distintas — ou de todas as existentes na região, se ela tiver 8 ginásios ou menos.
+        """
+        necessarias = min(8, total_ginasios)
+        return len(self.insignias) >= necessarias
 
     def __repr__(self):
         return f"{self.nome} pos:{self.posicao} XP:{self.xp} insígnias:{len(self.insignias)}"
@@ -173,13 +176,18 @@ class Treinador:
     def criar_treinador_npc(nome, posicao_inicial, evolucoes) -> Treinador:
         """Cria um treinador NPC com um time aleatório (3 a MAX_ATIVOS pokémon)"""
         npc = Treinador(nome, posicao_inicial)
+        npc.xp = random.randint(0, 20)  # já espalhado na região: XP aleatório (requisito 4)
         for _ in range(random.randint(3, Treinador.MAX_ATIVOS)):
             cadeia = random.choice(evolucoes)
-            npc.adicionar_pokemon(Pokemon(cadeia[0], cadeia))
+            npc.adicionar_pokemon(Pokemon.aleatorio(cadeia))
         npc.usuario = False
         return npc
+
+    
     #Sistema de batalha se iniciando a partir do treinador
-    def iniciarBatalha(self, adv: Treinador):
+    def iniciarBatalha(self, adv: Treinador, relogio):
+        from .lider_ginasio import LiderGinasio  # import tardio: evita ciclo treinador <-> lider_ginasio
+
         if adv.usuario == True :
             resp = input(f"{adv.nome} Quer batalhar? (s/n)")
             if(resp.lower() == 'n') :
@@ -189,95 +197,103 @@ class Treinador:
         t1 = self.conscientes[:3]
         t2 = adv.conscientes[:3]
         if (self.pode_batalhar and adv.pode_batalhar):
+            relogio.avancar(1)  # cada batalha dura o equivalente a uma unidade de tempo
             pk1 = t1[0]
             pk2 = t2[0]
             while len(t1) > 0 and len(t2) > 0:
                 print(f"Turno {turno}")
-                if self.usuario == True :
+                if adv.usuario == True :  # só o desafiado pode desistir — o desafiante (self) não pode
                     resp = input(f"{adv.nome} Quer desistir da batalha? (s/n)")
                     if(resp.lower() == 's') :
-                        print(f"Você desistiu da batalha e perdeu por WO!")
-                        if self.xp <= adv.xp:
-                            self.ganhar_xp(3)
-                        else :
+                        print(f"{adv.nome} desistiu da batalha e perdeu por WO!")
+                        if self.xp < adv.xp:
                             self.ganhar_xp(1)
+                        else :
+                            self.ganhar_xp(3)
                         return
-                pk2.atacar(pk1)
+                pk2.atacar(pk1, bonus_ap=adv.xp, bonus_dp_adv=self.xp)
                 if not pk1.consciente :
                     #caso o pokemon do desafiante seja derrotado pelo golpe
+                    if pk2.xp >= pk1.xp:
+                        pk2.ganhar_ponto_batalha()
                     pk1.ganhar_xp(3)
                     t1.pop(0)
                     if self.usuario == True :
                         if len(t1) == 2:
-                            while(True):
-                                escolha = int(input(f'escolha outro pokemon para batalhar'f"(({t1[0].nome})1/({t1[1].nome})2)"))
-                                if(escolha == 1) :
+                            while True:
+                                escolha = input(f'escolha outro pokemon para batalhar'f"(({t1[0].nome})1/({t1[1].nome})2)")
+                                if escolha == "1":
                                     pk1 = t1[0]
                                     break
-                                elif(escolha == 2) :
+                                elif escolha == "2":
                                     pk1 = t1[1]
                                     break
                         elif len(t1) == 1 :
                             pk1 = t1[0]
-                    else :
+                        # len(t1) == 0: time do desafiante inteiro derrotado, loop termina na próxima checagem do while
+                    elif t1:
                         pk1 = t1[0]
                     pk2.ganhar_xp(10)
                 else:
                     #caso o pokemon do desafiante sobreviva ao golpe
-                    pk1.atacar(pk2)
+                    pk1.atacar(pk2, bonus_ap=self.xp, bonus_dp_adv=adv.xp)
                     if not pk2.consciente :
+                        if pk1.xp >= pk2.xp:
+                            pk1.ganhar_ponto_batalha()
                         pk2.ganhar_xp(3)
                         t2.pop(0)
                         if adv.usuario == True :
                             if len(t2) == 2:
-                                while(True):
-                                    escolha = int(input(f'escolha outro pokemon para batalhar'f"(({t2[0].nome})1/({t2[1].nome})2)"))
-                                    if(escolha == 1) :
+                                while True:
+                                    escolha = input(f'escolha outro pokemon para batalhar'f"(({t2[0].nome})1/({t2[1].nome})2)")
+                                    if escolha == "1":
                                         pk2 = t2[0]
                                         break
-                                    elif(escolha == 2) :
+                                    elif escolha == "2":
                                         pk2 = t2[1]
                                         break
                             elif len(t2) == 1 :
                                 pk2 = t2[0]
-                        else :
+                            # len(t2) == 0: time do desafiado inteiro derrotado, loop termina na próxima checagem do while
+                        elif t2:
                             pk2 = t2[0]
                         pk1.ganhar_xp(10)
-                turno+=1   
-            else :
-                print(f"Não é possível iniciar a batalha")   
-            #Casos de vitórias e derrotas(Desafiante/Desafiado)                  
-            if len(t1) == 0 and self.xp < adv.xp :
-                adv.ganhar_xp(1)
-                print(f"{adv.nome} Ganhou!")
-            elif len(t1) == 0 and self.xp >= adv.xp :
-                adv.ganhar_xp(3)
-                print(f"{adv.nome} Ganhou!")
-            if len(t2) == 0 and adv.xp < self.xp :
-                self.ganhar_xp(1)
-                print(f"{self.nome} Ganhou!")
-            elif len(t2) == 0 and adv.xp >= self.xp :
-                self.ganhar_xp(3)
-                print(f"{self.nome} Ganhou!") 
-        
-    def iniciarCaptura(self, pkslvg: Pokemon):
-        from src.ui.comandos import adicionar_pokemon_escolha  # import tardio: evita ciclo entities <-> ui
+                turno+=1
+
+            #Casos de vitórias e derrotas(Desafiante/Desafiado)
+            vencedor, perdedor = (adv, self) if len(t1) == 0 else (self, adv)
+            if vencedor.xp < perdedor.xp:
+                vencedor.ganhar_xp(1)
+            else:
+                vencedor.ganhar_xp(3)
+            if isinstance(perdedor, LiderGinasio):
+                vencedor.coletar_insignia(perdedor.ginasio)
+                print(f"{vencedor.nome} ganhou a insígnia do ginásio {perdedor.ginasio}!")
+            print(f"{vencedor.nome} Ganhou!")
+        else:
+            print("Não é possível iniciar a batalha")
+
+    def iniciarCaptura(self, pkslvg: Pokemon, relogio):
+        from src.ui.comandos import adicionar_pokemon_escolha  # import tardio para evita import circular
 
         if self.usuario == True:
             resp = input(f"{self.nome} Quer tentar capturar o Pokemon? (s/n)")
             if(resp.lower() == 'n') :
                 print(f"Você deixou fugir!")
-                return
+                return "recusou"
             turno = 1
             t1 = self.conscientes[:3]
-            backupPkmn: List[Pokemon] = t1[0]
+            backupPkmn: List[Pokemon] = []
             if(self.pode_batalhar):
+                relogio.avancar(1)  # anda o relógio em 1 (tempo de batalha)
                 while len(t1) > 0 and pkslvg.consciente:
                     print(f"Turno {turno}")
                     pk1 = t1[0]
                     pkslvg.atacar(pk1)
                     if not pk1.consciente :
                         #caso o pokemon do desafiante seja derrotado pelo golpe
+                        if pkslvg.xp >= pk1.xp:
+                            pkslvg.ganhar_ponto_batalha()
                         pk1.ganhar_xp(3)
                         t1.pop(0)
                         backupPkmn.append(pk1)
@@ -286,19 +302,24 @@ class Treinador:
                         #caso o pokemon do desafiante sobreviva ao golpe
                         pk1.atacar(pkslvg)
                         if not pkslvg.consciente :
+                            if pk1.xp >= pkslvg.xp:
+                                pk1.ganhar_ponto_batalha()
                             pkslvg.ganhar_xp(3)
                             pk1.ganhar_xp(10)
                     if self.usuario == True :
                         resp = input(f"{self.nome} Quer desistir da captura? (s/n)")
                         if(resp.lower() == 's') :
                             print(f"Você desistiu da captura!")
-                            return
+                            return "desistiu"
                     turno+=1
                 if not pkslvg.consciente :
                     adicionar_pokemon_escolha(self, pkslvg)
+                    self.ganhar_xp(3)
                     pkslvg.ganhar_xp(3)
                     for pk in backupPkmn:
                         pk.ganhar_xp(3)
                     print(f"{self.nome} capturou um {pkslvg.nome} selvagem!")
+                    return "capturado"
                 else:
-                    print(f"Você perdeu...") 
+                    print(f"Você perdeu...")
+                    return "perdeu"

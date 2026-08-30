@@ -132,6 +132,7 @@ def _formatar(n_vertices, arestas, locais):
     linhas.append(f"TREINADORES {random.randint(3, 8)}")
     linhas.append(f"POKEMON {random.randint(10, 25)}")
     linhas.append(f"ITENS {random.randint(5, 15)}")
+    linhas.append(f"OVOS {random.randint(1, 5)}")
 
     linhas.append("")
     linhas.append("EVOLUCOES")

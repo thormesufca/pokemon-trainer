@@ -14,6 +14,11 @@ def _tipo_local(v, locais):
     return ''
 
 
+def pode_batalhar_aqui(locais, vertice):
+    """Batalhas são proibidas no laboratório do Professor Carvalho e nos PMCs."""
+    return vertice != locais.get('LAB') and vertice not in locais.get('PMC', [])
+
+
 COMANDOS_FIXOS = ["ir <v>", "mapa", "status", "interesse", "sair"]
 
 
@@ -29,6 +34,11 @@ def _comandos_contextuais(locais, treinador: Treinador, mundo):
             extras.append("retirar")
     if treinador.posicao in mundo.vertices_com("ovo"):
         extras.append("pegar ovo")
+    if pode_batalhar_aqui(locais, treinador.posicao):
+        if treinador.posicao in mundo.vertices_com("treinador") or treinador.posicao in mundo.vertices_com("lider"):
+            extras.append("desafiar")
+        if treinador.posicao in mundo.vertices_com("pokemon_selvagem"):
+            extras.append("capturar")
     return extras
 
 
@@ -102,8 +112,8 @@ def exibir_status(treinador: Treinador):
                 estado = f"{entrada['restante']}/{entrada['total']} unidades restantes"
             print(f"  Em tratamento no PMC [{entrada['vertice']}]: {entrada['pokemon'].nome} ({estado})")
     if treinador.ovos:
-        for ovo, dist in treinador.ovos.items():
-            print(f"  Ovo {ovo.nome}: {dist} unidades até eclodir")
+        for dist in treinador.ovos.values():
+            print(f"  Ovo: {dist} unidades até eclodir")
     itens_disponiveis = {tipo: qtd for tipo, qtd in treinador.itens.items() if qtd > 0}
     if itens_disponiveis:
         for tipo, qtd in itens_disponiveis.items():

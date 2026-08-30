@@ -23,7 +23,7 @@ class LiderGinasio(Treinador):
     def presente(self):
         return self.posicao == self.ginasio
 
-    def passo(self, grafo, prox, vertices_proibidos):
+    def passo(self, grafo, prox):
         """Avança um passo no ciclo de movimentação (um vértice por chamada)."""
         if not self.movel:
             return  # fixo: nunca sai do ginásio
@@ -33,10 +33,10 @@ class LiderGinasio(Treinador):
             if self.contador <= 0:
                 self.estado = "VAGANDO"
                 self.contador = random.randint(self.TEMPO_MIN_FORA, self.TEMPO_MAX_FORA) #Reseta o contador para tempo fora
-                self._passo_vagando(grafo, vertices_proibidos)  # já sai andando neste turno
+                self._passo_vagando(grafo)  # já sai andando neste turno
 
         elif self.estado == "VAGANDO":
-            self._passo_vagando(grafo, vertices_proibidos)
+            self._passo_vagando(grafo)
             if self.contador <= 0:
                 self.estado = "RETORNANDO"
 
@@ -47,8 +47,8 @@ class LiderGinasio(Treinador):
             else:
                 self.posicao = prox[self.posicao][self.ginasio] #Dá um passo pelo menor caminho
 
-    def _passo_vagando(self, grafo, vertices_proibidos):
-        candidatos = [v for v, _ in grafo[self.posicao] if v not in vertices_proibidos] #Dá um passo para um vértice aleatório
+    def _passo_vagando(self, grafo):
+        candidatos = [v for v, _ in grafo[self.posicao]] #Dá um passo para um vértice aleatório
         if candidatos:
             self.posicao = random.choice(candidatos)
         self.contador -= 1
@@ -57,7 +57,8 @@ class LiderGinasio(Treinador):
     def criar(nome, ginasio, evolucoes) -> "LiderGinasio":
         """Cria um Líder de ginásio com time cheio de pokemons"""
         lider = LiderGinasio(nome, ginasio, movel=random.choice([True, False]))
+        lider.xp = random.randint(0, 20)  # já espalhado na região: XP aleatório (requisito 4)
         for _ in range(Treinador.MAX_ATIVOS):
             cadeia = random.choice(evolucoes)
-            lider.adicionar_pokemon(Pokemon(cadeia[0], cadeia))
+            lider.adicionar_pokemon(Pokemon.aleatorio(cadeia))
         return lider

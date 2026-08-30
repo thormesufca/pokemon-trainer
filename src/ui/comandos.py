@@ -6,6 +6,7 @@ from src.entities import Pokemon, Treinador
 from src.ui.exibicao import (
     exibir_mapa, exibir_estado, exibir_status,
     descrever_rota, verificar_pokemons_machucados, pontos_de_interesse,
+    pode_batalhar_aqui,
 )
 
 
@@ -65,14 +66,88 @@ def _cmd_pegar_ovo(ctx):
     if ovo is None:
         print("Não há ovos aqui.")
         return False
-    dist_choca = random.randint(50, 200)
-    treinador.ovos[ovo] = dist_choca
-    print(f"Você pegou um ovo de {ovo.nome}! Ele choca em {dist_choca} unidades de distância.")
+    treinador.ovos[ovo] = Treinador.DIST_CHOCAGEM
+    print(f"Você pegou um ovo! Ele choca em {Treinador.DIST_CHOCAGEM} unidades de distância.")
     return False
 
 
 def _cmd_interesse(ctx):
     pontos_de_interesse(ctx.dist, ctx.prox, ctx.locais, ctx.mundo, ctx.treinador)
+    return False
+
+
+def _escolher(candidatos, pergunta):
+    """Pede ao jogador para escolher um índice entre os candidatos, se houver mais de um."""
+    if len(candidatos) == 1:
+        return candidatos[0]
+    print(pergunta)
+    for i, c in enumerate(candidatos):
+        print(f"[{i}] {c.nome}")
+    while True:
+        escolha = input("> ").strip()
+        if escolha.isdigit() and 0 <= int(escolha) < len(candidatos):
+            return candidatos[int(escolha)]
+        print("Escolha inválida")
+
+
+def _cmd_desafiar(ctx):
+    treinador = ctx.treinador
+    if not pode_batalhar_aqui(ctx.locais, treinador.posicao):
+        print("Batalhas não são permitidas aqui (laboratório/PMC).")
+        return False
+    candidatos = [t for t in ctx.mundo.treinadores_npc if t.posicao == treinador.posicao]
+    candidatos += [l for l in ctx.mundo.lideres_ginasio.values() if l.posicao == treinador.posicao]
+    if not candidatos:
+        print("Não há ninguém para desafiar aqui.")
+        return False
+    if not treinador.pode_batalhar:
+        print("Você precisa de ao menos três pokémon conscientes para batalhar.")
+        return False
+
+    oponente = _escolher(candidatos, "Quem você quer desafiar?")
+    treinador.iniciarBatalha(oponente, ctx.relogio)
+    return False
+
+
+PROB_DESAFIO_NPC = 0.5  # chance de um treinador NPC presente no vértice desafiar o jogador ao chegar
+
+
+def desafio_npc(ctx):
+    """Ao chegar num vértice com treinador NPC, ele pode desafiar o jogador"""
+    treinador = ctx.treinador
+    if not pode_batalhar_aqui(ctx.locais, treinador.posicao):
+        return
+    if not treinador.pode_batalhar:
+        return
+    candidatos = [t for t in ctx.mundo.treinadores_npc
+                  if t.posicao == treinador.posicao and t.pode_batalhar]
+    if not candidatos:
+        return
+    if random.random() >= PROB_DESAFIO_NPC:
+        return
+
+    npc = random.choice(candidatos)
+    print(f"\n{npc.nome} apareceu e quer batalhar!")
+    npc.iniciarBatalha(treinador, ctx.relogio)
+
+
+def _cmd_capturar(ctx):
+    treinador = ctx.treinador
+    if not pode_batalhar_aqui(ctx.locais, treinador.posicao):
+        print("Batalhas não são permitidas aqui (laboratório/PMC).")
+        return False
+    candidatos = ctx.mundo.pokemons_selvagens.get(treinador.posicao, [])
+    if not candidatos:
+        print("Não há pokémon selvagem aqui.")
+        return False
+    if not treinador.pode_batalhar:
+        print("Você precisa de ao menos três pokémon conscientes para capturar.")
+        return False
+
+    alvo = _escolher(candidatos, "Qual pokémon selvagem você quer desafiar?")
+    resultado = treinador.iniciarCaptura(alvo, ctx.relogio)
+    if resultado in ("capturado", "desistiu"):
+        ctx.mundo.retirar_pokemon_selvagem(treinador.posicao, alvo)
     return False
 
 
@@ -118,8 +193,8 @@ def _cmd_ir(ctx, partes):
 
     w = adj[destino]
     prontos, chocados = treinador.mover(destino, w, ctx.relogio)
-    ctx.mundo.mover_npcs(ctx.grafo, ctx.proibidos_npc)
-    ctx.mundo.mover_lideres(ctx.grafo, ctx.prox, ctx.proibidos_npc)
+    ctx.mundo.mover_npcs(ctx.grafo)
+    ctx.mundo.mover_lideres(ctx.grafo, ctx.prox)
     exibir_estado(ctx.grafo, treinador, ctx.relogio, ctx.locais, ctx.mundo)
 
     for entrada in prontos:
@@ -130,12 +205,15 @@ def _cmd_ir(ctx, partes):
         destino_ovo = "seu time" if ovo in treinador.time else "o laboratório (time cheio)"
         print(f"\nUm ovo chocou! Bem-vindo, {ovo.nome}! Foi para {destino_ovo}.")
 
+    desafio_npc(ctx)
+
     verificar_pokemons_machucados(ctx.dist, ctx.prox, ctx.locais, treinador)
 
     if ctx.relogio.acabou():
         print("Tempo esgotado! A Liga fechou as portas.")
         return True
-    if treinador.classificado and treinador.posicao == ctx.locais.get("ESTADIO"):
+    total_ginasios = len(ctx.locais.get("GINASIO", []))
+    if treinador.classificado(total_ginasios) and treinador.posicao == ctx.locais.get("ESTADIO"):
         print("Você se inscreveu na Liga Pokémon com 8 insígnias — VITÓRIA!")
         return True
     return False
@@ -150,6 +228,8 @@ COMANDOS_SEM_ARGUMENTO = {
     "pegar ovo": _cmd_pegar_ovo,
     "interesse": _cmd_interesse,
     "retirar": _cmd_retirar,
+    "desafiar": _cmd_desafiar,
+    "capturar": _cmd_capturar,
 }
 
 # Comandos com argumento — a chave é o prefixo (com o espaço) usado no texto digitado.
