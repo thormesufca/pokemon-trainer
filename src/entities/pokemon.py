@@ -1,6 +1,8 @@
 from __future__ import annotations
 import random
 
+from .tipos import tipos_de
+
 
 class Pokemon:
     MAX_HP = 100
@@ -11,6 +13,7 @@ class Pokemon:
         self.nome = nome
         self.cadeia_evolutiva = cadeia_evolutiva
         self.fase = cadeia_evolutiva.index(nome)  # 0, 1 ou 2
+        self.tipos = tipos_de(nome)
         self.hp = 100
         self.xp = 0
         self.ap_base = ap_base if ap_base is not None else random.randint(10, 30)
@@ -48,6 +51,7 @@ class Pokemon:
     def _evoluir(self):
         self.fase += 1
         self.nome = self.cadeia_evolutiva[self.fase]
+        self.tipos = tipos_de(self.nome)  # a nova fase pode ganhar/perder tipos (ex.: Charizard vira fire+flying)
         self.ap_base = int(self.ap_base * (1 + self.BONUS_EVOLUCAO))
         self.dp_base = int(self.dp_base * (1 + self.BONUS_EVOLUCAO))
         self.xp = 0  # zera após evoluir (máximo 3 fases)
@@ -78,11 +82,20 @@ class Pokemon:
     def capturar(self, treinador: Treinador):
         self._dono = treinador
 
-    #Parte do sistema de batalha, usado na chamada da batalha pelo treinador,
-    #em que existe chance de esquiva e de crítico
-    def atacar(self, pkmnAdv: Pokemon):
-        if (pkmnAdv.dp < self.ap):
-            danoF = self.ap - pkmnAdv.dp
+    @staticmethod
+    def aleatorio(cadeia_evolutiva) -> "Pokemon":
+        """Pokémon de fase inicial já com XP e HP aleatórios."""
+        pokemon = Pokemon(cadeia_evolutiva[0], cadeia_evolutiva)
+        pokemon.xp = random.randint(0, Pokemon.XP_EVOLUCAO - 1)
+        pokemon.hp = random.randint(20, Pokemon.MAX_HP)
+        return pokemon
+
+    #Parte do sistema de batalha, usado na chamada da batalha pelo treinador, em que existe chance de esquiva e de crítico
+    def atacar(self, pkmnAdv: Pokemon, bonus_ap=0, bonus_dp_adv=0):
+        ap_efetivo = self.ap + bonus_ap
+        dp_efetivo_adv = pkmnAdv.dp + bonus_dp_adv
+        if (dp_efetivo_adv < ap_efetivo):
+            danoF = ap_efetivo - dp_efetivo_adv
             ModuloDifXP = abs(self.xp - pkmnAdv.xp)
             chance = min(1.0, ModuloDifXP / 1000)
             #chance de esquiva
@@ -96,4 +109,5 @@ class Pokemon:
             return print(f"{pkmnAdv.nome} não recebeu dano")        
 
     def __repr__(self):
-        return f"{self.nome} HP:{self.hp} XP:{self.xp} AP:{self.ap} DP:{self.dp}"
+        tipos = "/".join(self.tipos) if self.tipos else "?"
+        return f"{self.nome} ({tipos}) HP:{self.hp} XP:{self.xp} AP:{self.ap} DP:{self.dp}"

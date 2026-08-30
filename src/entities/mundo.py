@@ -5,11 +5,6 @@ from .treinador import Treinador
 from .lider_ginasio import LiderGinasio
 
 
-def vertices_proibidos_para_npc(locais):
-    """Vértices onde NPCs (treinadores, pokémon selvagens) não podem ser colocados/passar: LAB, PMC e ginásios."""
-    return {locais.get('LAB')} | set(locais.get('PMC', [])) | set(locais.get('GINASIO', []))
-
-
 class Mundo:
     """Estado do que está espalhado pela região: itens, Pokémon selvagens e treinadores NPC."""
 
@@ -25,6 +20,12 @@ class Mundo:
 
     def adicionar_pokemon_selvagem(self, vertice, pokemon):
         self.pokemons_selvagens.setdefault(vertice, []).append(pokemon)
+
+    def retirar_pokemon_selvagem(self, vertice, pokemon):
+        """Remove um pokémon selvagem específico do mundo (capturado ou fugiu para sempre)."""
+        lst = self.pokemons_selvagens.get(vertice)
+        if lst and pokemon in lst:
+            lst.remove(pokemon)
 
     def adicionar_treinador_npc(self, treinador: Treinador):
         self.treinadores_npc.append(treinador)
@@ -60,9 +61,9 @@ class Mundo:
             return None
         return lst.pop()
 
-    def mover_npcs(self, grafo, vertices_proibidos):
+    def mover_npcs(self, grafo):
         def passo_aleatorio(origem):
-            candidatos = [v for v, _ in grafo[origem] if v not in vertices_proibidos]
+            candidatos = [v for v, _ in grafo[origem]]
             return random.choice(candidatos) if candidatos else origem
 
         novos_pokemons = {}
@@ -75,14 +76,13 @@ class Mundo:
         for treinador in self.treinadores_npc:
             treinador.posicao = passo_aleatorio(treinador.posicao)
 
-    def mover_lideres(self, grafo, prox, vertices_proibidos):
+    def mover_lideres(self, grafo, prox):
         for lider in self.lideres_ginasio.values():
-            lider.passo(grafo, prox, vertices_proibidos)
+            lider.passo(grafo, prox)
 
-    def popular(self, grafo, locais, evolucoes, populacao):
+    def popular(self, grafo, evolucoes, populacao):
         """Espalha pokémon selvagens, itens, ovos e treinadores NPC pelos vértices livres do grafo."""
-        proibidos = vertices_proibidos_para_npc(locais)
-        vertices_livres = [v for v in grafo if v not in proibidos]
+        vertices_livres = list(grafo)
 
         # Gera ordem aleatoria de vertices para não ficar muito sequencial
         random.shuffle(vertices_livres)
@@ -105,7 +105,7 @@ class Mundo:
             tipo = random.choice(candidatos)
             if tipo == "pokemon":
                 cadeia = random.choice(evolucoes)
-                self.adicionar_pokemon_selvagem(vertice, Pokemon(cadeia[0], cadeia))
+                self.adicionar_pokemon_selvagem(vertice, Pokemon.aleatorio(cadeia))
             elif tipo == "item":
                 self.adicionar_item(vertice)
             elif tipo == "treinador":

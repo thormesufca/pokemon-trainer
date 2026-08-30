@@ -1,3 +1,4 @@
+import random
 import sys
 import argparse
 from src.grafo import ler_grafo, floyd_warshall
@@ -16,7 +17,7 @@ def main():
     relogio = Relogio(grafo)
     mundo = Mundo()
 
-    mundo.popular(grafo, locais, evolucoes, populacao)
+    mundo.popular(grafo, evolucoes, populacao)
     mundo.criar_lideres_ginasio(locais, evolucoes)
 
     print(f"Mapa carregado — {len(grafo)} vértices | prazo da Liga: {relogio.prazo()} unidades")
@@ -24,17 +25,21 @@ def main():
     nome_jogador = input("Qual é o seu nome, treinador? ").strip() or "Ash"
 
     starters = evolucoes[:3]
-    print("\nEscolha o seu Pokémon inicial:")
+    print("\nEscolha o seu Pokémon inicial (ou 'n' para recusar os três e receber um aleatório):")
     for i, cadeia in enumerate(starters):
         print(f"  [{i}] {cadeia[0]}")
 
     while True:
-        escolha = input("> ").strip()
+        escolha = input("> ").strip().lower()
         if escolha.isdigit() and 0 <= int(escolha) < len(starters):
+            cadeia_escolhida = starters[int(escolha)]
+            break
+        if escolha == "n":
+            cadeia_escolhida = random.choice(evolucoes)
+            print(f"Você recusou os três iniciais. O professor Carvalho te deu um {cadeia_escolhida[0]} aleatório!")
             break
         print("Escolha inválida.")
 
-    cadeia_escolhida = starters[int(escolha)]
     starter = Pokemon(cadeia_escolhida[0], cadeia_escolhida)
     treinador = Treinador(nome_jogador, locais['LAB'])
     treinador.adicionar_pokemon(starter)

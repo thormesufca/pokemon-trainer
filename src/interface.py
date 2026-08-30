@@ -1,14 +1,12 @@
 from types import SimpleNamespace
-from src.entities import vertices_proibidos_para_npc
 from src.ui.exibicao import exibir_estado, comandos_disponiveis
 from src.ui.comandos import COMANDOS_SEM_ARGUMENTO, COMANDOS_COM_ARGUMENTO
 
 
 def loop_comandos(grafo, locais, treinador, relogio, dist, prox, mundo):
-    proibidos_npc = vertices_proibidos_para_npc(locais)
     ctx = SimpleNamespace(
         grafo=grafo, locais=locais, treinador=treinador, relogio=relogio,
-        dist=dist, prox=prox, mundo=mundo, proibidos_npc=proibidos_npc,
+        dist=dist, prox=prox, mundo=mundo,
     )
 
     print(f"\nBem-vindo, {treinador.nome}! Você está no laboratório.")
