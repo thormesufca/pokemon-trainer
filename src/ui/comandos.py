@@ -44,6 +44,7 @@ def _cmd_mapa(ctx):
 
 def _cmd_status(ctx):
     exibir_status(ctx.treinador)
+    verificar_pokemons_machucados(ctx.dist, ctx.prox, ctx.locais, ctx.treinador)
     return False
 
 
@@ -73,6 +74,7 @@ def _cmd_pegar_ovo(ctx):
 
 def _cmd_interesse(ctx):
     pontos_de_interesse(ctx.dist, ctx.prox, ctx.locais, ctx.mundo, ctx.treinador)
+    verificar_pokemons_machucados(ctx.dist, ctx.prox, ctx.locais, ctx.treinador)
     return False
 
 
@@ -140,8 +142,8 @@ def _cmd_capturar(ctx):
     if not candidatos:
         print("Não há pokémon selvagem aqui.")
         return False
-    if not treinador.pode_batalhar:
-        print("Você precisa de ao menos três pokémon conscientes para capturar.")
+    if not treinador.pode_capturar:
+        print("Você precisa de ao menos um pokémon consciente para capturar.")
         return False
 
     alvo = _escolher(candidatos, "Qual pokémon selvagem você quer desafiar?")
@@ -175,6 +177,20 @@ def _cmd_deixar(ctx, partes):
         print(str(e))
         return False
     print(f"Você deixou {pokemon.nome} em tratamento no PMC. Tempo estimado: {tempo} unidades.")
+    return False
+
+
+def _cmd_usar(ctx, partes):
+    if len(partes) != 2:
+        print("Uso: usar <item> (veja os itens em 'status')")
+        return False
+    tipo = partes[1]
+    treinador = ctx.treinador
+    if treinador.itens[tipo] <= 0:
+        print(f"Você não tem {tipo}.")
+        return False
+    treinador.usar_item(tipo)
+    print(f"Você usou {tipo}!")
     return False
 
 
@@ -226,7 +242,7 @@ COMANDOS_SEM_ARGUMENTO = {
     "status": _cmd_status,
     "pegar": _cmd_pegar,
     "pegar ovo": _cmd_pegar_ovo,
-    "interesse": _cmd_interesse,
+    "poi": _cmd_interesse,
     "retirar": _cmd_retirar,
     "desafiar": _cmd_desafiar,
     "capturar": _cmd_capturar,
@@ -234,6 +250,7 @@ COMANDOS_SEM_ARGUMENTO = {
 
 # Comandos com argumento — a chave é o prefixo (com o espaço) usado no texto digitado.
 COMANDOS_COM_ARGUMENTO = {
-    "deixar ": _cmd_deixar,
-    "ir ": _cmd_ir,
+    "deixar": _cmd_deixar,
+    "usar": _cmd_usar,
+    "ir": _cmd_ir,
 }

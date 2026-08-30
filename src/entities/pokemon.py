@@ -8,6 +8,7 @@ class Pokemon:
     MAX_HP = 100
     XP_EVOLUCAO = 1000
     BONUS_EVOLUCAO = 0.30
+    XP_ALEATORIO_MAX = 150
 
     def __init__(self, nome, cadeia_evolutiva, ap_base=None, dp_base=None):
         self.nome = nome
@@ -62,8 +63,10 @@ class Pokemon:
 
     def receber_dano(self, dano):
         self.hp = max(0, self.hp - dano)
+        print(f"{self.nome} recebeu {dano} de dano! HP {self.hp}")
         if not self.consciente:
             self._tempo_inconsciente = random.randint(10, 50)
+            print(f"{self.nome} ficou inconsciente!")
 
     def curar_natural(self, distancia):
         if not self.muito_machucado:
@@ -86,7 +89,7 @@ class Pokemon:
     def aleatorio(cadeia_evolutiva) -> "Pokemon":
         """Pokémon de fase inicial já com XP e HP aleatórios."""
         pokemon = Pokemon(cadeia_evolutiva[0], cadeia_evolutiva)
-        pokemon.xp = random.randint(0, Pokemon.XP_EVOLUCAO - 1)
+        pokemon.xp = random.randint(0, Pokemon.XP_ALEATORIO_MAX)
         pokemon.hp = random.randint(20, Pokemon.MAX_HP)
         return pokemon
 
@@ -94,19 +97,21 @@ class Pokemon:
     def atacar(self, pkmnAdv: Pokemon, bonus_ap=0, bonus_dp_adv=0):
         ap_efetivo = self.ap + bonus_ap
         dp_efetivo_adv = pkmnAdv.dp + bonus_dp_adv
+        print(f"{self.nome} ataca {pkmnAdv.nome}")
         if (dp_efetivo_adv < ap_efetivo):
             danoF = ap_efetivo - dp_efetivo_adv
             ModuloDifXP = abs(self.xp - pkmnAdv.xp)
             chance = min(1.0, ModuloDifXP / 1000)
             #chance de esquiva
             if random.random() < chance :
-                return print(f"{pkmnAdv.nome} esquivou!")
+                return print(f"{pkmnAdv.nome} esquivou! HP {pkmnAdv.hp}")
             #chance de crítico
-            if random.random() < chance:    
+            if random.random() < chance:
+                print("Foi um golpe crítico!")
                 return pkmnAdv.receber_dano(danoF*2)
             return pkmnAdv.receber_dano(danoF)  
         else :
-            return print(f"{pkmnAdv.nome} não recebeu dano")        
+            return print(f"{pkmnAdv.nome} não recebeu dano HP {pkmnAdv.hp}")      
 
     def __repr__(self):
         tipos = "/".join(self.tipos) if self.tipos else "?"
